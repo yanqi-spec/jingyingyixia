@@ -279,8 +279,14 @@
 <div class="cheat-eye" id="cheatEye">🌸</div>
 
 <script>
-    // 视频列表 (占位)
-    const adVideos = ["f1.mp4", "f2.mp4", "f3.mp4", "f4.mp4", "f5.mp4", "f6.mp4", "f7.mp4", "f8.mp4", "f9.mp4", "f10.mp4", "f11.mp4"];
+    // 视频列表 (使用有效占位视频源，保证视频可播放且不可拖动进度条)
+    // 为了避免真实视频缺失，我们利用原生video的disableRemotePlayback，并禁用控制条拖动: 设置controlsList="nodownload noremoteplayback nofullscreen"
+    // 并且通过监听 seeking 事件阻止拖动进度，用户无法快进，只能完整观看。
+    const adVideos = [
+        "https://www.w3schools.com/html/mov_bbb.mp4",    // 公网可播放示例视频
+        "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
+        "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/earth.mp4"
+    ];
     
     const cropsData = {
         spring: [{ name: "🍓 草莓", basePrice: 48, growTime: 32, icon: "🍓" }, { name: "🥬 生菜", basePrice: 42, growTime: 24, icon: "🥬" }, { name: "🌱 豌豆", basePrice: 44, growTime: 28, icon: "🌱" }],
@@ -305,10 +311,9 @@
     
     function getCurrentSeason() { return seasons[game.seasonIndex]; }
     function getSeasonMultiplier() { const m = { spring:1.0, summer:1.1, autumn:1.05, winter:0.95 }; return m[getCurrentSeason()]; }
-    function getCropPrice(basePrice) { return Math.max(40, Math.floor(basePrice * getSeasonMultiplier() * (1 + (game.level-1)*0.12) * 1.08)); }  // 平衡价格
+    function getCropPrice(basePrice) { return Math.max(40, Math.floor(basePrice * getSeasonMultiplier() * (1 + (game.level-1)*0.12) * 1.08)); }
     function getRandomCrop() { const pool = cropsData[getCurrentSeason()]; return { ...pool[Math.floor(Math.random() * pool.length)] }; }
     
-    // 庆典奖励优化，减少不必要的重绘
     function checkAndGrantFestivalReward(harvestedThisTime = 1) {
         let oldMod = harvestCount % 25;
         harvestCount += harvestedThisTime;
@@ -321,7 +326,7 @@
             triggered = true;
         }
         if (triggered) fullRefresh();
-        else updateUIOnly();   // 只刷新UI非关键部分提高性能
+        else updateUIOnly();
         return triggered;
     }
     
@@ -350,7 +355,6 @@
         saveLocal();
     }
     
-    // 核心点击
     function onPlotClick(row, col) {
         const plot = plots[row][col];
         if(!plot) return;
@@ -391,7 +395,6 @@
         }
     }
     
-    // 只更新数字、仓库、而不重新生成整个grid (性能关键)
     function updateUIOnly() {
         document.getElementById('moneyDisplay').innerText = Math.floor(game.money);
         document.getElementById('levelDisplay').innerText = game.level;
@@ -409,7 +412,6 @@
         else whDiv.innerHTML = warehouse.map(w => `<div class="warehouse-item">${w.icon} ${w.name} ✖️${w.count}</div>`).join('');
     }
     
-    // 完整刷新 (grid重绘)
     function fullRefresh() {
         updateUIOnly();
         const grid = document.getElementById('farmGrid');
@@ -510,27 +512,54 @@
         }
     }
     
-    // 广告播放优化：减少dom操作，复用机制
+    // 创建不可拖动广告视频 (禁止seek/拖动进度条)
+    function createNonSeekableVideo(src) {
+        const video = document.createElement('video');
+        video.src = src;
+        video.className = 'ad-video';
+        video.controls = true;
+        video.playsInline = true;
+        video.preload = 'auto';
+        video.setAttribute('playsinline', 'true');
+        video.setAttribute('webkit-playsinline', 'true');
+        // 关键: 禁用远程回放、隐藏下载、禁用全屏及控制条上的拖动效果
+        video.setAttribute('controlsList', 'nodownload noremoteplayback nofullscreen');
+        video.disableRemotePlayback = true;
+        // 阻止进度条拖动 (通过监听 seeking 事件)
+        let wasPlaying = false;
+        video.addEventListener('seeking', (e) => {
+            // 如果用户尝试拖动/跳转，强制回到原来的播放时间
+            if (video.duration && video.currentTime !== video._lastTime) {
+                const targetTime = video.currentTime;
+                // 限制只能稍微向前，但强制不允许跳过大段，最好直接恢复到跳转前
+                if (video._lastTime !== undefined && Math.abs(targetTime - video._lastTime) > 0.5) {
+                    video.currentTime = video._lastTime;
+                    showToast("⚠️ 广告视频不可拖动，请完整观看～", true);
+                } else {
+                    video._lastTime = video.currentTime;
+                }
+            }
+        });
+        video.addEventListener('timeupdate', () => {
+            video._lastTime = video.currentTime;
+        });
+        return video;
+    }
+    
     function showAdAndBoost() {
         const overlay = document.createElement('div'); overlay.className = 'ad-overlay';
         const container = document.createElement('div'); container.className = 'ad-container';
         const title = document.createElement('div');
         title.style.cssText = 'text-align:center; color:#ffdd99; font-size:1.1rem; margin-bottom:10px; font-weight:bold;';
-        title.innerText = '🎬 观看广告获取2倍速加速 🎬';
-        const video = document.createElement('video');
+        title.innerText = '🎬 观看广告获取2倍速加速 (不可拖动) 🎬';
         const randomIndex = Math.floor(Math.random() * adVideos.length);
-        video.src = adVideos[randomIndex];
-        video.className = 'ad-video';
-        video.controls = true;
-        video.playsInline = true;
-        video.preload = 'metadata';
-        video.setAttribute('playsinline', 'true');
-        video.setAttribute('webkit-playsinline', 'true');
+        const video = createNonSeekableVideo(adVideos[randomIndex]);
+        
         const statusDiv = document.createElement('div');
         statusDiv.style.cssText = 'text-align:center; margin-top:12px; color:#ffcc88; font-size:0.8rem;';
-        statusDiv.innerHTML = '📺 点击播放，完整观看后即可领取加速⚡';
+        statusDiv.innerHTML = '📺 请完整观看视频，完成后自动解锁加速奖励 ✨';
         const closeBtn = document.createElement('div');
-        closeBtn.innerText = '🔒 看完视频后领取加速';
+        closeBtn.innerText = '⏳ 观看完成后领取';
         closeBtn.style.cssText = 'display:block; margin:16px auto 0; background:#78b25a; color:white; padding:8px 24px; border-radius:50px; width:fit-content; cursor:pointer; font-weight:bold;';
         let videoCompleted = false;
         let videoStarted = false;
@@ -550,34 +579,40 @@
         
         video.addEventListener('play', () => {
             videoStarted = true;
-            statusDiv.innerHTML = '🎥 播放中，请看完完整视频...';
+            statusDiv.innerHTML = '🎥 播放中，请勿拖动进度条，完整看完即可～';
             statusDiv.style.color = '#aaffaa';
         });
         video.addEventListener('ended', () => {
             videoCompleted = true;
             closeBtn.innerText = '✅ 领取2倍速加速 ✅';
             closeBtn.style.background = '#5aa46a';
-            statusDiv.innerHTML = '✅ 视频已看完！点击领取加速奖励 ✅';
+            statusDiv.innerHTML = '✅ 广告观看完成！点击下方按钮获得加速奖励 ✅';
         });
         video.addEventListener('error', () => {
-            statusDiv.innerHTML = '⚠️ 视频加载失败，可直接领取加速 ⚠️';
+            statusDiv.innerHTML = '⚠️ 视频加载失败，但仍可领取加速奖励 ⚠️';
             videoCompleted = true;
             closeBtn.innerText = '⚠️ 领取加速 (视频错误)';
             closeBtn.style.background = '#b58a4a';
         });
+        // 播放进度达到95%以上认为已完成
         video.addEventListener('timeupdate', () => {
             if (video.duration > 0 && video.currentTime >= video.duration - 0.3 && !videoCompleted && videoStarted) {
                 videoCompleted = true;
                 closeBtn.innerText = '✅ 领取2倍速加速 ✅';
                 closeBtn.style.background = '#5aa46a';
-                statusDiv.innerHTML = '✅ 视频已看完！点击领取加速 ✅';
+                statusDiv.innerHTML = '✅ 视频即将播完，点击领取加速！✅';
             }
         });
         
         closeBtn.onclick = () => {
             if (!videoCompleted && video.duration > 0 && video.currentTime < video.duration - 0.5 && videoStarted) {
-                statusDiv.innerHTML = '❌ 请完整观看视频后再领取奖励！';
+                statusDiv.innerHTML = '❌ 请完整观看视频后再领取奖励！不可拖动快进。';
                 statusDiv.style.color = '#ff8888';
+                showToast("请完整观看广告视频，不可拖动进度条跳过", true);
+                return;
+            }
+            if(!videoCompleted && !videoStarted){
+                statusDiv.innerHTML = '❓ 请先点击播放按钮观看视频';
                 return;
             }
             grantBoost();
@@ -588,11 +623,11 @@
         container.appendChild(closeBtn);
         overlay.appendChild(container);
         document.body.appendChild(overlay);
+        // 自动开始播放
+        video.play().catch(e => { statusDiv.innerHTML = '点击画面播放视频 🎬'; });
     }
     
     let lastTimestamp = 0;
-    let frameRequestId = null;
-    // 核心性能优化循环: 使用固定时间步长减少重绘频率
     function gameLoop(nowMs) {
         if (!lastTimestamp) { lastTimestamp = nowMs / 1000; requestAnimationFrame(gameLoop); return; }
         const nowSec = nowMs / 1000;
@@ -601,7 +636,6 @@
         lastTimestamp = nowSec;
         let effectiveDelta = speedActive ? delta * 2 : delta;
         let needRefresh = false;
-        // 更新所有作物时间 & 虫害概率
         for(let i=0;i<GRID_SIZE;i++){
             for(let j=0;j<GRID_SIZE;j++){
                 const p = plots[i][j];
@@ -609,7 +643,6 @@
                     const before = p.crop.growRemaining;
                     p.crop.growRemaining -= effectiveDelta;
                     if(p.crop.growRemaining < 0) p.crop.growRemaining = 0;
-                    // 虫害判定：减少随机频率但保证合理 (每秒最多触发一次)
                     if(!p.crop.pest && p.crop.growRemaining > 0 && Math.floor(before) !== Math.floor(p.crop.growRemaining) && Math.random() < 0.025){
                         p.crop.pest = true;
                         showToast(`🐛 虫害！${p.crop.type} 需要驱虫`, true);
@@ -619,7 +652,6 @@
                 }
             }
         }
-        // 季节更替逻辑 (每120秒增加一天)
         dayCounter += delta;
         let seasonChanged = false;
         while(dayCounter >= 120){
@@ -635,7 +667,6 @@
         if(needRefresh || seasonChanged){
             fullRefresh();
         } else {
-            // 仅刷新数据面板，避免grid重绘
             updateUIOnly();
         }
         requestAnimationFrame(gameLoop);
@@ -644,12 +675,12 @@
     function showTutorial() {
         if(localStorage.getItem('orchardTutorial')) return;
         const modal = document.createElement('div'); modal.className = 'modal-overlay';
-        modal.innerHTML = `<div class="modal-content"><div class="modal-title">🌾 梦幻果园指南</div>
-        <div class="guide-step" style="margin-bottom:8px;">1️⃣ 点击<strong>空闲地块</strong>即可种植（消耗30金币）</div>
-        <div class="guide-step" style="margin-bottom:8px;">2️⃣ 成熟后<strong>收获</strong>，攒满<strong>25收获次数</strong>触发庆典奖励金币！</div>
-        <div class="guide-step" style="margin-bottom:8px;">3️⃣ 虫害地块需用<strong>驱虫药(12金币)</strong>点击消灭🐛</div>
-        <div class="guide-step" style="margin-bottom:8px;">4️⃣ 看广告得<strong>2倍速30秒</strong>，作物长得更快~</div>
-        <div class="guide-step" style="margin-bottom:8px;">5️⃣ 仓库一键出售换金币，升级提升售价！</div>
+        modal.innerHTML = `<div class="modal-content"><div style="font-size:1.2rem;font-weight:bold;margin-bottom:8px;">🌾 梦幻果园指南</div>
+        <div style="margin-bottom:8px;">1️⃣ 点击<strong>空闲地块</strong>即可种植（消耗30金币）</div>
+        <div style="margin-bottom:8px;">2️⃣ 成熟后<strong>收获</strong>，攒满<strong>25收获次数</strong>触发庆典奖励金币！</div>
+        <div style="margin-bottom:8px;">3️⃣ 虫害地块需用<strong>驱虫药(12金币)</strong>点击消灭🐛</div>
+        <div style="margin-bottom:8px;">4️⃣ 看广告得<strong>2倍速30秒</strong>（广告不可拖动，须完整观看）作物长得更快~</div>
+        <div style="margin-bottom:8px;">5️⃣ 仓库一键出售换金币，升级提升售价！</div>
         <div class="close-modal" id="closeTutorial" style="background:#f5b45a; width:fit-content; margin:12px auto 0; padding:8px 24px; border-radius:60px; cursor:pointer;">🚜 开始经营</div></div>`;
         document.body.appendChild(modal);
         document.getElementById('closeTutorial').onclick = () => { modal.remove(); localStorage.setItem('orchardTutorial', 'true'); };
@@ -666,7 +697,7 @@
             { name: "虫害克星", done: achievements.pesticide10, current: `${game.pesticideUsed}/10` }
         ];
         const modal = document.createElement('div'); modal.className = 'modal-overlay';
-        modal.innerHTML = `<div class="modal-content"><div class="modal-title">🏆 成就殿堂</div>
+        modal.innerHTML = `<div class="modal-content"><div style="font-weight:bold;font-size:1.1rem;">🏆 成就殿堂</div>
         ${list.map(a => `<div style="padding:6px;margin:5px 0;background:${a.done ? '#daefc4' : '#f6e6d0'};border-radius:60px;"><div style="display:flex;justify-content:space-between;font-size:0.85rem;"><span>${a.done ? '✅' : '🔒'} ${a.name}</span><span>${a.current}</span></div></div>`).join('')}
         <div class="close-modal" id="closeAchieve" style="background:#f5b45a; width:fit-content; margin:12px auto 0; padding:6px 24px; border-radius:60px; cursor:pointer;">关闭</div></div>`;
         document.body.appendChild(modal);
@@ -704,7 +735,6 @@
         setTimeout(() => checkAchievements(), 60);
     }
     
-    // 作弊彩蛋
     let clickCnt=0, clickTimer=null;
     const cheatEye = document.getElementById('cheatEye');
     cheatEye.onclick = (e) => {
@@ -718,10 +748,8 @@
         } else { clickTimer = setTimeout(()=>{ clickCnt=0; }, 800); }
     };
     
-    // 初始化网格
     for(let i=0;i<GRID_SIZE;i++){ plots[i]=[]; for(let j=0;j<GRID_SIZE;j++) plots[i][j]={crop:null}; }
     loadLocal();
-    lastTimestamp = 0;
     requestAnimationFrame(gameLoop);
     showTutorial();
     
@@ -735,7 +763,7 @@
     document.getElementById('signBtn').onclick = () => dailySign();
     document.getElementById('achievementBtn').onclick = () => showAchievements();
     
-    showToast("✨ 流畅田园 | 点击地块 种植/收获/驱虫", false);
+    showToast("✨ 流畅田园 | 点击地块 种植/收获/驱虫 | 广告不可拖动", false);
 </script>
 </body>
 </html>

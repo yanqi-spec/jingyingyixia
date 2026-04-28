@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🌾 小七果园</title>
+    <title>🌾 小七果园 | 轻松农场</title>
     <style>
         * {
             margin: 0;
@@ -105,7 +105,6 @@
             box-shadow: inset 0 0 0 2px #fff4e4, 0 10px 20px rgba(0,0,0,0.1);
         }
 
-        /* 修复：确保6x6网格完整显示 */
         .grid {
             display: grid;
             grid-template-columns: repeat(6, 1fr);
@@ -127,7 +126,7 @@
             transition: 0.05s linear;
             padding: 6px 3px;
             position: relative;
-            min-height: 0; /* 移除最小高度限制 */
+            min-height: 0;
             aspect-ratio: 1 / 1;
         }
         .plot:active { transform: scale(0.96); background-color: #b58c52; }
@@ -260,7 +259,6 @@
             font-weight: 600; max-width: 85vw;
         }
 
-        /* 手机端专门优化 - 确保6x6网格完整显示 */
         @media (max-width: 650px) {
             body { padding: 6px; }
             .game-container { border-radius: 28px; }
@@ -273,48 +271,23 @@
             .price-list { gap: 4px; max-height: 200px; }
             .price-item { padding: 4px 8px; font-size: 0.65rem; }
             .farm-panel { padding: 10px 8px; }
-            
-            /* 关键修复：减小间距，确保6列完整显示 */
-            .grid {
-                gap: 5px;
-                margin-bottom: 10px;
-            }
-            
-            .plot {
-                padding: 4px 2px;
-                border-radius: 12px;
-            }
-            
+            .grid { gap: 5px; margin-bottom: 10px; }
+            .plot { padding: 4px 2px; border-radius: 12px; }
             .crop-icon { font-size: 1.2rem; margin-bottom: 1px; }
-            .crop-name { 
-                font-size: 0.5rem; 
-                padding: 1px 3px; 
-                white-space: normal;
-                word-break: keep-all;
-                line-height: 1.2;
-            }
-            .timer-text { 
-                font-size: 0.45rem; 
-                padding: 1px 3px; 
-                margin-top: 2px;
-                white-space: normal;
-                text-align: center;
-            }
+            .crop-name { font-size: 0.5rem; padding: 1px 3px; white-space: normal; word-break: keep-all; line-height: 1.2; }
+            .timer-text { font-size: 0.45rem; padding: 1px 3px; margin-top: 2px; white-space: normal; text-align: center; }
             .empty-plot { font-size: 1.2rem; }
             .pest-badge { font-size: 0.45rem; padding: 1px 3px; top: -4px; right: -4px; }
-            
             .warehouse-panel { padding: 8px 10px; }
             .warehouse-title { font-size: 0.7rem; margin-bottom: 6px; }
             .warehouse-list { max-height: 55px; gap: 4px; }
             .warehouse-item { padding: 2px 8px; font-size: 0.6rem; }
-            
             .control-bar { padding: 8px 10px; gap: 6px; }
             button { padding: 5px 10px; font-size: 0.65rem; }
             .cheat-eye { width: 38px; height: 38px; font-size: 1.3rem; bottom: 15px; right: 15px; }
             .toast { bottom: 70px; left: 12px; font-size: 0.65rem; padding: 5px 12px; }
         }
 
-        /* 超小手机进一步优化 */
         @media (max-width: 480px) {
             .grid { gap: 4px; }
             .plot { border-radius: 10px; }
@@ -329,6 +302,24 @@
         ::-webkit-scrollbar { width: 3px; height: 3px; }
         ::-webkit-scrollbar-track { background: #eadbc8; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #c18e4a; border-radius: 10px; }
+        .skip-ad-btn {
+            background: #a55d35;
+            color: #ffecb3;
+            border: none;
+            margin-top: 12px;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 0.8rem;
+            cursor: pointer;
+            width: 90%;
+            display: block;
+            text-align: center;
+            transition: 0.1s linear;
+            box-shadow: 0 2px 4px #00000044;
+        }
+        .skip-ad-btn:active { transform: scale(0.97); background: #7e451f; }
+        .ad-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
     </style>
 </head>
 <body>
@@ -369,7 +360,7 @@
 <div class="cheat-eye" id="cheatEye">🌸</div>
 
 <script>
-    // 视频文件列表
+    // 视频文件列表（模拟广告资源）
     const adVideos = [];
     for (let i = 1; i <= 11; i++) {
         adVideos.push(`./f${i}.mp4`);
@@ -604,6 +595,7 @@
         }
     }
     
+    // 新版广告：增加“不想看了”按钮，点击后无加速直接关闭
     function showAdAndBoost() {
         const overlay = document.createElement('div'); 
         overlay.className = 'ad-overlay';
@@ -611,7 +603,7 @@
         container.className = 'ad-container';
         const title = document.createElement('div');
         title.style.cssText = 'text-align:center; color:#ffdd99; font-size:1rem; margin-bottom:10px; font-weight:bold;';
-        title.innerText = '🎬 观看完整视频得2倍速 🎬';
+        title.innerText = '🎬 看广告领2倍速 🎬';
         const randomIndex = Math.floor(Math.random() * adVideos.length);
         const videoPath = adVideos[randomIndex];
         const video = document.createElement('video');
@@ -623,10 +615,33 @@
         const statusDiv = document.createElement('div');
         statusDiv.style.cssText = 'text-align:center; margin-top:12px; color:#ffcc88; font-size:0.75rem;';
         statusDiv.innerHTML = '📺 点击播放，完整观看后领取加速';
-        const closeBtn = document.createElement('div');
-        closeBtn.innerText = '🔒 请完整观看视频';
-        closeBtn.style.cssText = 'display:block; margin:14px auto 0; background:#78b25a; color:white; padding:6px 20px; border-radius:50px; width:fit-content; cursor:pointer; font-weight:bold; opacity:0.7;';
-        closeBtn.style.pointerEvents = 'none';
+        
+        // 按钮区域：完整观看领取 与 “不想看了，跳过”
+        const btnWrapper = document.createElement('div');
+        btnWrapper.className = 'ad-buttons';
+        
+        const watchCompleteBtn = document.createElement('button');
+        watchCompleteBtn.innerText = '🎁 看完领取加速 (需完整播放)';
+        watchCompleteBtn.style.background = '#78b25a';
+        watchCompleteBtn.style.color = 'white';
+        watchCompleteBtn.style.borderRadius = '60px';
+        watchCompleteBtn.style.padding = '8px 16px';
+        watchCompleteBtn.style.fontWeight = 'bold';
+        watchCompleteBtn.style.border = 'none';
+        watchCompleteBtn.style.cursor = 'pointer';
+        watchCompleteBtn.style.boxShadow = '0 2px 4px black';
+        
+        const skipBtn = document.createElement('button');
+        skipBtn.innerText = '❌ 不想看了 (无加速，直接关闭)';
+        skipBtn.style.background = '#a55d35';
+        skipBtn.style.color = '#ffecb3';
+        skipBtn.style.borderRadius = '60px';
+        skipBtn.style.padding = '8px 16px';
+        skipBtn.style.fontWeight = 'bold';
+        skipBtn.style.border = 'none';
+        skipBtn.style.cursor = 'pointer';
+        skipBtn.style.boxShadow = '0 2px 4px black';
+        
         let videoCompleted = false;
         let videoStarted = false;
         let videoLoadFailed = false;
@@ -644,16 +659,15 @@
             overlay.remove();
         };
         
+        // 完整观看逻辑
         video.addEventListener('loadedmetadata', () => {
             statusDiv.innerHTML = '✅ 视频加载成功，点击播放 ✅';
         });
         video.addEventListener('error', () => {
             videoLoadFailed = true;
-            statusDiv.innerHTML = `⚠️ 视频加载失败，可领取补偿加速 ⚠️`;
-            closeBtn.innerText = '⚠️ 领取加速 (补偿)';
-            closeBtn.style.background = '#b58a4a';
-            closeBtn.style.opacity = '1';
-            closeBtn.style.pointerEvents = 'auto';
+            statusDiv.innerHTML = `⚠️ 视频加载失败，可直接点击"领取加速"按钮 ⚠️`;
+            watchCompleteBtn.innerText = '⚠️ 补偿领取加速 (视频加载失败)';
+            watchCompleteBtn.style.background = '#b58a4a';
         });
         video.addEventListener('play', () => {
             videoStarted = true;
@@ -661,25 +675,38 @@
         });
         video.addEventListener('ended', () => {
             videoCompleted = true;
-            closeBtn.innerText = '✅ 领取2倍速加速 ✅';
-            closeBtn.style.background = '#5aa46a';
-            closeBtn.style.opacity = '1';
-            closeBtn.style.pointerEvents = 'auto';
+            watchCompleteBtn.innerText = '✅ 领取2倍速加速 ✅';
+            watchCompleteBtn.style.background = '#5aa46a';
             statusDiv.innerHTML = '✅ 视频已看完！点击领取 ✅';
         });
-        closeBtn.onclick = () => {
-            if (videoLoadFailed) { grantBoost(); return; }
-            if (!videoCompleted && videoStarted && video.currentTime < video.duration - 0.5) {
-                statusDiv.innerHTML = '❌ 请完整观看视频！';
+        
+        // 完整看完领取按钮
+        watchCompleteBtn.onclick = () => {
+            if (videoLoadFailed) {
+                grantBoost();
                 return;
             }
-            if (!videoStarted) { statusDiv.innerHTML = '❌ 请先点击播放'; return; }
+            if (!videoCompleted && videoStarted && video.currentTime < video.duration - 0.5) {
+                statusDiv.innerHTML = '❌ 请完整观看整个视频！';
+                return;
+            }
+            if (!videoStarted && !videoLoadFailed) { statusDiv.innerHTML = '❌ 请先点击播放视频'; return; }
+            if (!videoCompleted && !videoLoadFailed) { statusDiv.innerHTML = '❌ 视频未播放完毕，无法领取'; return; }
             grantBoost();
         };
+        
+        // “不想看了” 直接关闭无加速
+        skipBtn.onclick = () => {
+            showToast("⏹️ 已关闭广告，没有获得加速效果", false);
+            overlay.remove();
+        };
+        
+        btnWrapper.appendChild(watchCompleteBtn);
+        btnWrapper.appendChild(skipBtn);
         container.appendChild(title);
         container.appendChild(video);
         container.appendChild(statusDiv);
-        container.appendChild(closeBtn);
+        container.appendChild(btnWrapper);
         overlay.appendChild(container);
         document.body.appendChild(overlay);
         video.load();
@@ -734,7 +761,7 @@
         <div style="margin-bottom:6px; font-size:0.8rem;">1️⃣ 点击空闲地块种植(30💰)</div>
         <div style="margin-bottom:6px; font-size:0.8rem;">2️⃣ 收获作物，满25次得庆典奖励</div>
         <div style="margin-bottom:6px; font-size:0.8rem;">3️⃣ 虫害需点击地块驱虫(12💰)</div>
-        <div style="margin-bottom:6px; font-size:0.8rem;">4️⃣ 看广告得2倍速30秒</div>
+        <div style="margin-bottom:6px; font-size:0.8rem;">4️⃣ 看广告得2倍速30秒 (可跳过无加速)</div>
         <div style="margin-bottom:6px; font-size:0.8rem;">5️⃣ 出售仓库换取金币升级</div>
         <div class="close-modal" id="closeTutorial" style="background:#f5b45a; width:fit-content; margin:10px auto 0; padding:6px 20px; border-radius:60px; cursor:pointer;">🚜 开始经营</div></div>`;
         document.body.appendChild(modal);
@@ -783,7 +810,7 @@
         setTimeout(() => checkAchievements(), 60);
     }
     
-    // 作弊彩蛋
+    // 彩蛋
     let clickCnt=0, clickTimer=null;
     const cheatEye = document.getElementById('cheatEye');
     cheatEye.onclick = (e) => {
@@ -813,7 +840,7 @@
     document.getElementById('signBtn').onclick = () => dailySign();
     document.getElementById('achievementBtn').onclick = () => showAchievements();
     
-    showToast("✨ 6x6果园 | 点击地块种植/收获", false);
+    showToast("✨ 6x6果园 | 广告增加跳过按钮，不加速直接关闭", false);
 </script>
 </body>
 </html>

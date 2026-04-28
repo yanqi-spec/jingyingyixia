@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🌾 梦幻果园·丰收庆典 | 修复点击种植</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: linear-gradient(135deg, #2d6a4f 0%, #1b4d3e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', 'Poppins', 'Quicksand', system-ui, sans-serif;
+            padding: 16px;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 1400px;
+            background: #fef5e8;
+            border-radius: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .stats-bar {
+            background: linear-gradient(135deg, #f7b56e, #e69a3a);
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            color: white;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 60px;
+            padding: 4px 16px;
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .stat-card:hover { background: rgba(0,0,0,0.4); }
+
+        .stat-card span:first-child { font-size: 0.8rem; opacity: 0.9; }
+        .stat-card span:last-child { font-size: 1.3rem; font-weight: 800; font-family: monospace; }
+
+        .game-main {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .price-panel {
+            flex: 0.8;
+            min-width: 180px;
+            background: #f0e2d0;
+            border-radius: 32px;
+            padding: 15px;
+            height: fit-content;
+        }
+
+        .price-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #a55a2a;
+            border-left: 4px solid #f0a34a;
+            padding-left: 12px;
+            margin-bottom: 12px;
+        }
+
+        .price-list { display: flex; flex-direction: column; gap: 6px; }
+        .price-item {
+            background: white;
+            border-radius: 40px;
+            padding: 5px 12px;
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: #6b3a1a;
+            font-size: 0.85rem;
+        }
+
+        .farm-panel {
+            flex: 3;
+            min-width: 280px;
+            background: #e8d8c0;
+            border-radius: 32px;
+            padding: 18px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+            aspect-ratio: 6 / 5;
+        }
+
+        .plot {
+            background: #c9a87a;
+            border-radius: 20px;
+            box-shadow: inset 0 0 0 3px #f5e2c0, 0 4px 8px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.05s linear;
+            padding: 6px 2px;
+            position: relative;
+            min-height: 90px;
+        }
+        .plot:active { transform: scale(0.97); }
+
+        .crop-icon { font-size: 1.8rem; }
+        .crop-name { font-size: 0.65rem; font-weight: bold; background: rgba(255,245,200,0.9); padding: 2px 6px; border-radius: 20px; margin-top: 4px; }
+        .timer-text { font-size: 0.65rem; font-weight: bold; background: #eef5cc; padding: 2px 6px; border-radius: 30px; margin-top: 4px; }
+        .pest-badge { position: absolute; top: -6px; right: -6px; background: #cc5533; color: white; border-radius: 30px; padding: 2px 6px; font-size: 0.6rem; font-weight: bold; }
+        .empty-plot { font-size: 1.5rem; opacity: 0.6; }
+
+        .warehouse-panel {
+            background: #f0e2d0;
+            border-radius: 32px;
+            padding: 12px;
+            margin-top: 18px;
+        }
+        .warehouse-title {
+            font-weight: bold;
+            color: #a55a2a;
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        .warehouse-list {
+            max-height: 100px;
+            overflow-y: auto;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .warehouse-item {
+            background: white;
+            border-radius: 30px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .control-bar {
+            background: #2d2a1e;
+            padding: 12px 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+        button {
+            font-family: inherit;
+            background: #f0a34a;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-weight: bold;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.05s linear;
+            box-shadow: 0 2px 0 #8b5a2a;
+            color: #2c1a0a;
+        }
+        button:active { transform: translateY(2px); box-shadow: 0 1px 0 #8b5a2a; }
+        .speed-btn { background: #4a8c5a; color: white; box-shadow: 0 2px 0 #2a5a3a; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 3000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #fef2e0; border-radius: 48px; padding: 24px;
+            max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto;
+            border: 2px solid #ffcc66; box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+        .modal-title { font-size: 1.5rem; font-weight: bold; color: #a55a2a; margin-bottom: 16px; text-align: center; }
+        .guide-step { background: #fff4e6; border-radius: 32px; padding: 12px; margin-bottom: 12px; border-left: 4px solid #f0a34a; }
+        .close-modal { background: #f0a34a; margin-top: 16px; width: 100%; padding: 10px; border-radius: 60px; font-weight: bold; cursor: pointer; text-align: center; }
+
+        .ad-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 4000;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .ad-container { background: #1e2a1a; border-radius: 32px; width: 90%; max-width: 800px; padding: 20px; border: 2px solid #ffcc66; }
+        .ad-video { width: 100%; max-height: 60vh; border-radius: 24px; background: black; pointer-events: none; }
+        .ad-close-btn { display: block; margin: 16px auto 0; background: #5fa04a; color: white; padding: 8px 20px; border-radius: 40px; cursor: pointer; width: fit-content; }
+        .ad-close-btn.disabled { background: #888; pointer-events: none; opacity: 0.6; }
+
+        .cheat-eye {
+            position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px;
+            background: rgba(0,0,0,0.55); backdrop-filter: blur(8px); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            font-size: 1.8rem; z-index: 1000; border: 2px solid #ffcc88;
+        }
+        .toast {
+            position: fixed; bottom: 100px; left: 20px; background: rgba(30,40,20,0.95);
+            color: #fff5e0; padding: 8px 18px; border-radius: 40px; font-size: 13px;
+            z-index: 2000; border-left: 4px solid #ffcf6a;
+        }
+        @media (max-width: 700px) {
+            .grid { gap: 6px; }
+            .crop-icon { font-size: 1.2rem; }
+            button { padding: 4px 10px; font-size: 0.7rem; }
+            .stat-card span:last-child { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="game-container">
+    <div class="stats-bar">
+        <div class="stat-card" id="signBtn"><span>📅 签到</span><span>🎁</span></div>
+        <div class="stat-card" id="achievementBtn"><span>🏆 成就</span><span id="achievementBadge">0</span></div>
+        <div class="stat-card"><span>💰 金币</span><span id="moneyDisplay">1000</span></div>
+        <div class="stat-card"><span>⭐ 等级</span><span id="levelDisplay">1</span></div>
+        <div class="stat-card"><span>📆 第 <span id="dayCount">1</span> 天</span></div>
+        <div class="stat-card"><span>⏰ <span id="seasonDisplay">🌱 春季</span></span></div>
+        <div class="stat-card"><span>📊 收获计数</span><span id="harvestCounter">0/25</span></div>
+        <div class="stat-card"><span>⚡ 加速</span><span id="boostStatus">正常</span></div>
+    </div>
+    <div class="game-main">
+        <div class="price-panel">
+            <div class="price-title">📊 当前售价 (庆典奖励)</div>
+            <div class="price-list" id="priceList"></div>
+            <div style="margin-top: 10px; font-size:0.7rem;">🐞 驱虫药12金币 | 🎬 视频2倍速(不可拖动)</div>
+            <div style="margin-top: 5px; font-size:0.7rem;">🎉 每收获25个作物触发庆典奖励</div>
+        </div>
+        <div class="farm-panel">
+            <div class="grid" id="farmGrid"></div>
+            <div class="warehouse-panel">
+                <div class="warehouse-title"><span>📦 丰收仓库 (仅展示)</span><button id="sellAllBtn" style="padding:2px 12px;">💰 一键出售</button></div>
+                <div id="warehouseList" class="warehouse-list">🌾 仓库空空</div>
+            </div>
+        </div>
+    </div>
+    <div class="control-bar">
+        <button id="plantBtn">🌱 种植($30)</button>
+        <button id="harvestAllBtn">🍅 一键收获</button>
+        <button id="pesticideBtn">🧪 驱虫药($12)</button>
+        <button id="upgradeBtn">⭐ 升级($200)</button>
+        <button id="speedBoostBtn" class="speed-btn">🎬 看视频2倍速(不可拖动)</button>
+        <button id="resetBtn">🔄 重置</button>
+    </div>
+</div>
+<div class="cheat-eye" id="cheatEye">👁️</div>
+
+<script>
+    // ---------- 广告视频列表 ----------
+    const adVideos = ["f1.mp4", "f2.mp4", "f3.mp4", "f4.mp4", "f5.mp4", "f6.mp4", "f7.mp4", "f8.mp4", "f9.mp4", "f10.mp4", "f11.mp4"];
+
+    // ---------- 作物数据 ----------
+    const cropsData = {
+        spring: [{ name: "🍓 草莓", basePrice: 48, growTime: 32, icon: "🍓" }, { name: "🥬 生菜", basePrice: 42, growTime: 24, icon: "🥬" }, { name: "🌱 豌豆", basePrice: 44, growTime: 28, icon: "🌱" }],
+        summer: [{ name: "🍉 西瓜", basePrice: 68, growTime: 48, icon: "🍉" }, { name: "🌽 玉米", basePrice: 52, growTime: 40, icon: "🌽" }, { name: "🍅 番茄", basePrice: 50, growTime: 28, icon: "🍅" }],
+        autumn: [{ name: "🍎 苹果", basePrice: 58, growTime: 38, icon: "🍎" }, { name: "🍠 红薯", basePrice: 46, growTime: 28, icon: "🍠" }, { name: "🎃 南瓜", basePrice: 62, growTime: 48, icon: "🎃" }],
+        winter: [{ name: "🥕 胡萝卜", basePrice: 44, growTime: 28, icon: "🥕" }, { name: "🥦 西兰花", basePrice: 52, growTime: 38, icon: "🥦" }, { name: "🧄 大蒜", basePrice: 48, growTime: 28, icon: "🧄" }]
+    };
+    const GRID_SIZE = 6;
+    let plots = []; 
+    let warehouse = []; 
+    let harvestCount = 0;
+    let game = { money: 1000, level: 1, day: 1, seasonIndex: 0, totalHarvest: 0, totalMoney: 1000, pesticideUsed: 0, upgrades: 0 };
+    let dayCounter = 0; 
+    let speedActive = false;
+    let speedTimer = null;
+    let achievements = { harvest50: false, harvest200: false, harvest500: false, level5: false, money5000: false, pesticide10: false };
+    let lastSignDay = 0; 
+    let signStreak = 0;
+    const seasons = ["spring", "summer", "autumn", "winter"];
+    const seasonNames = ["🌱 春季", "☀️ 夏季", "🍂 秋季", "❄️ 冬季"];
+
+    function getCurrentSeason() { return seasons[game.seasonIndex]; }
+    function getSeasonMultiplier() { const m = { spring:1.0, summer:1.1, autumn:1.05, winter:0.95 }; return m[getCurrentSeason()]; }
+    function getCropPrice(basePrice) { 
+        let price = Math.floor(basePrice * getSeasonMultiplier() * (1 + (game.level-1)*0.12) * 1.1);
+        return Math.max(40, price);
+    }
+    function getRandomCrop() { const pool = cropsData[getCurrentSeason()]; return { ...pool[Math.floor(Math.random() * pool.length)] }; }
+
+    // 庆典奖励
+    function checkAndGrantFestivalReward(harvestedThisTime = 1) {
+        const oldMod = harvestCount % 25;
+        harvestCount += harvestedThisTime;
+        if (oldMod + harvestedThisTime >= 25) {
+            let bonus = 150 + game.level * 15;
+            game.money += bonus;
+            game.totalMoney += bonus;
+            showToast(`🎉 丰收庆典！每25收获奖励 +${bonus} 金币 🎉`, false);
+            fullRefresh();
+            return true;
+        }
+        return false;
+    }
+
+    function checkAchievements() {
+    let changed = false;
+    
+    if (!achievements.harvest50 && game.totalHarvest >= 50) { 
+        achievements.harvest50 = true; 
+        showToast("🏆 成就解锁：新手农夫 (收获50次)", false);
+        changed = true;
+    }
+    if (!achievements.harvest200 && game.totalHarvest >= 200) { 
+        achievements.harvest200 = true; 
+        showToast("🏆 成就解锁：种植大师 (收获200次)", false);
+        changed = true;
+    }
+    if (!achievements.harvest500 && game.totalHarvest >= 500) { 
+        achievements.harvest500 = true; 
+        showToast("🏆 成就解锁：传奇农夫 (收获500次)", false);
+        changed = true;
+    }
+    if (!achievements.level5 && game.level >= 5) { 
+        achievements.level5 = true; 
+        showToast("🏆 成就解锁：农场大亨 (等级5)", false);
+        changed = true;
+    }
+    if (!achievements.money5000 && game.totalMoney >= 5000) { 
+        achievements.money5000 = true; 
+        showToast("🏆 成就解锁：腰缠万贯 (累计收入5000)", false);
+        changed = true;
+    }
+    if (!achievements.pesticide10 && game.pesticideUsed >= 10) { 
+        achievements.pesticide10 = true; 
+        showToast("🏆 成就解锁：虫害克星 (使用10次驱虫药)", false);
+        changed = true;
+    }
+    
+    let badge = Object.values(achievements).filter(v => v === true).length;
+    document.getElementById('achievementBadge').innerText = badge;
+    
+    if (changed) {
+        localStorage.setItem('orchardAchievements', JSON.stringify(achievements));
+        saveLocal();
+    }
+}
+
+    function dailySign() {
+        if (game.day === lastSignDay) { showToast("今天已经签过到了！", true); return; }
+        let reward = 100 + signStreak * 20;
+        game.money += reward;
+        game.totalMoney += reward;
+        signStreak = (game.day === lastSignDay+1) ? signStreak+1 : 1;
+        lastSignDay = game.day;
+        showToast(`🎁 签到成功！获得 ${reward} 金币，连续签到${signStreak}天`, false);
+        fullRefresh();
+        saveLocal();
+    }
+
+    // ★★★★★ 核心修复：完全可用的点击种植/收获/驱虫逻辑 ★★★★★
+    function onPlotClick(row, col) {
+        console.log(`点击地块[${row},${col}]`);
+        const plot = plots[row][col];
+        if(!plot) return;
+        
+        // 情况1：地块无作物 -> 尝试种植
+        if(!plot.crop){
+            if(game.money >= 30){
+                const crop = getRandomCrop();
+                game.money -= 30;
+                plot.crop = { 
+                    type: crop.name, 
+                    basePrice: crop.basePrice, 
+                    growRemaining: crop.growTime, 
+                    icon: crop.icon, 
+                    pest: false 
+                };
+                fullRefresh();
+                showToast(`🌱 种下 ${crop.name}，需 ${crop.growTime}秒成熟`, false);
+                saveLocal();
+            } else {
+                showToast("💰 金币不足，无法种植 (需要30金币)", true);
+            }
+            return;
+        }
+        
+        // 情况2：有作物，检查虫害
+        if(plot.crop.pest){
+            if(game.money >= 12){
+                game.money -= 12;
+                plot.crop.pest = false;
+                game.pesticideUsed++;
+                fullRefresh();
+                showToast(`🧪 驱虫成功！${plot.crop.type} 恢复生长`, false);
+                saveLocal();
+            } else {
+                showToast("💰 金币不足，驱虫需要12金币", true);
+            }
+            return;
+        }
+        
+               // 情况3：没有虫害，检查是否成熟
+        if(plot.crop.growRemaining <= 0){
+            // 收获农作物 -> 放入仓库，不直接获得金币
+            let harvestedCropName = plot.crop.type;  // 先保存作物名称
+            const existed = warehouse.find(w => w.name === plot.crop.type);
+            if(existed) existed.count++;
+            else warehouse.push({ name: plot.crop.type, basePrice: plot.crop.basePrice, icon: plot.crop.icon, count: 1 });
+            game.totalHarvest++;
+            checkAndGrantFestivalReward(1);
+            plot.crop = null;
+            fullRefresh();
+            showToast(`🍅 收获 ${harvestedCropName}！累计收获次数+1`, false);
+            saveLocal();
+        } else {
+            // 未成熟
+            showToast(`⏳ ${plot.crop.type} 还需 ${Math.ceil(plot.crop.growRemaining)} 秒成熟`, true);
+        }
+    }
+
+    // 刷新UI和绑定事件 (确保每次重建后事件持久绑定，使用事件委托避免丢失)
+    function fullRefresh() {
+        document.getElementById('moneyDisplay').innerText = Math.floor(game.money);
+        document.getElementById('levelDisplay').innerText = game.level;
+        document.getElementById('dayCount').innerText = game.day;
+        document.getElementById('seasonDisplay').innerHTML = seasonNames[game.seasonIndex];
+        document.getElementById('harvestCounter').innerHTML = `${harvestCount % 25}/25`;
+        document.getElementById('boostStatus').innerHTML = speedActive ? '⚡2倍速(30s)' : '正常';
+        
+        // 刷新价格列表
+        const allCrops = [];
+        for(let s of seasons) cropsData[s].forEach(c => { if(!allCrops.find(a=>a.name===c.name)) allCrops.push(c); });
+        document.getElementById('priceList').innerHTML = allCrops.map(c => `<div class="price-item"><span>${c.icon} ${c.name}</span><span>💰 ${getCropPrice(c.basePrice)}</span></div>`).join('');
+        
+        // 刷新仓库
+        const whDiv = document.getElementById('warehouseList');
+        if(warehouse.length===0) whDiv.innerHTML = '🌾 仓库空空 (仅展示收获记录)';
+        else whDiv.innerHTML = warehouse.map(w => `<div class="warehouse-item">${w.icon} ${w.name} ✖️${w.count}</div>`).join('');
+        
+        // 刷新地块网格
+        const grid = document.getElementById('farmGrid');
+        let html = '';
+        for(let i=0;i<GRID_SIZE;i++){
+            for(let j=0;j<GRID_SIZE;j++){
+                const p = plots[i][j];
+                if(p && p.crop){
+                    const isReady = p.crop.growRemaining <= 0;
+                    html += `<div class="plot" data-row="${i}" data-col="${j}">
+                        <div class="crop-icon">${p.crop.icon}</div>
+                        <div class="crop-name">${p.crop.type}</div>
+                        <div class="timer-text">${isReady ? '🌾 可收获' : `⏳ ${Math.ceil(p.crop.growRemaining)}秒`}</div>
+                        ${p.crop.pest ? '<div class="pest-badge">🐛虫害</div>' : ''}
+                    </div>`;
+                } else {
+                    html += `<div class="plot" data-row="${i}" data-col="${j}">
+                        <div class="empty-plot">🌿</div>
+                        <div style="font-size:0.65rem;">空闲</div>
+                    </div>`;
+                }
+            }
+        }
+        grid.innerHTML = html;
+        
+        // ★★★★★ 关键修复：使用事件委托监听单击，避免内存泄漏和绑定失效 ★★★★★
+        // 移除旧监听器避免重复，但使用委托只需绑定一次父容器即可，但是为防止多次绑定，先解绑再绑定
+        if (window._plotDelegate) {
+            grid.removeEventListener('click', window._plotDelegate);
+        }
+        const clickHandler = function(e) {
+            let target = e.target.closest('.plot');
+            if (!target) return;
+            const row = target.getAttribute('data-row');
+            const col = target.getAttribute('data-col');
+            if (row !== null && col !== null) {
+                e.stopPropagation();
+                onPlotClick(parseInt(row), parseInt(col));
+            }
+        };
+        grid.addEventListener('click', clickHandler);
+        window._plotDelegate = clickHandler;
+        
+        saveLocal();
+        checkAchievements();
+    }
+
+    function harvestAll(){
+        let cnt = 0;
+        for(let i=0;i<GRID_SIZE;i++){
+            for(let j=0;j<GRID_SIZE;j++){
+                const p = plots[i][j];
+                if(p.crop && p.crop.growRemaining <= 0 && !p.crop.pest){
+                    const existed = warehouse.find(w => w.name === p.crop.type);
+                    if(existed) existed.count++;
+                    else warehouse.push({ name: p.crop.type, basePrice: p.crop.basePrice, icon: p.crop.icon, count: 1 });
+                    game.totalHarvest++;
+                    cnt++;
+                    p.crop = null;
+                }
+            }
+        }
+        if(cnt > 0){
+            checkAndGrantFestivalReward(cnt);
+            fullRefresh();
+            showToast(`🌾 一键收获 ${cnt} 个作物！累计次数+${cnt}`, false);
+        } else {
+            showToast("没有成熟作物可收获", true);
+        }
+    }
+
+    function sellAllWarehouse(){
+        if(warehouse.length === 0) { showToast("仓库空空", true); return; }
+        let earn = 0;
+        for(let w of warehouse) earn += getCropPrice(w.basePrice) * w.count;
+        game.money += earn;
+        game.totalMoney += earn;
+        warehouse = [];
+        fullRefresh();
+        showToast(`🏪 售出仓库所有作物，获得 ${earn} 金币`, false);
+    }
+
+    function upgradeFarm(){
+        if(game.money >= 200){
+            game.money -= 200;
+            game.level++;
+            game.upgrades++;
+            fullRefresh();
+            showToast(`⭐ 农场升级 Lv.${game.level} ！作物售价和庆典奖励提升`, false);
+        } else {
+            showToast("金币不足 200", true);
+        }
+    }
+
+    function usePesticideMode(){ showToast("⚠️ 请直接点击带有🐛虫害标识的地块使用驱虫药(12金币)", false); }
+
+    function resetGame(){
+    if(confirm("⚠️ 确认重置农场？所有进度将丢失！")){
+        game = { money: 1000, level: 1, day: 1, seasonIndex: 0, totalHarvest: 0, totalMoney: 1000, pesticideUsed: 0, upgrades: 0 };
+        warehouse = []; 
+        harvestCount = 0; 
+        dayCounter = 0;
+        signStreak = 0; 
+        lastSignDay = 0;
+        
+        if(speedTimer) clearTimeout(speedTimer); 
+        speedActive = false;
+        
+        for(let i=0;i<GRID_SIZE;i++){ 
+            plots[i]=[]; 
+            for(let j=0;j<GRID_SIZE;j++) plots[i][j]={crop:null}; 
+        }
+        
+        achievements = { harvest50: false, harvest200: false, harvest500: false, level5: false, money5000: false, pesticide10: false };
+        
+        localStorage.removeItem('orchardAchievements');
+        
+        fullRefresh();
+        showToast("🔄 农场已重置，一切从零开始", false);
+        saveLocal();
+    }
+}
+
+    // 广告加速
+    function showAdAndBoost() {
+        const randomVideo = adVideos[Math.floor(Math.random() * adVideos.length)];
+        const overlay = document.createElement('div'); overlay.className = 'ad-overlay';
+        const container = document.createElement('div'); container.className = 'ad-container';
+        const video = document.createElement('video');
+        video.src = randomVideo;
+        video.className = 'ad-video';
+        video.controls = true;
+        video.autoplay = true;
+        video.style.pointerEvents = 'none';
+        video.setAttribute('controlsList', 'nodownload');
+        const closeBtn = document.createElement('div');
+        closeBtn.innerText = '✓ 我已看完广告，领取加速';
+        closeBtn.className = 'ad-close-btn disabled';
+        const tip = document.createElement('div');
+        tip.style.textAlign = 'center';
+        tip.style.color = '#ffefaa';
+        tip.style.marginTop = '10px';
+        tip.innerText = '请完整观看视频（进度条不可拖动）后领取2倍速30秒';
+        container.appendChild(video);
+        container.appendChild(closeBtn);
+        container.appendChild(tip);
+        overlay.appendChild(container);
+        document.body.appendChild(overlay);
+
+        video.addEventListener('ended', () => {
+            closeBtn.classList.remove('disabled');
+            closeBtn.style.pointerEvents = 'auto';
+            closeBtn.innerText = '✅ 领取加速';
+        });
+        video.addEventListener('error', () => {
+            tip.innerText = '⚠️ 视频加载失败，可跳过';
+            closeBtn.classList.remove('disabled');
+            closeBtn.innerText = '⚠️ 跳过广告';
+        });
+        closeBtn.onclick = () => {
+            if (closeBtn.classList.contains('disabled') && !video.ended) {
+                showToast("请完整观看广告视频", true);
+                return;
+            }
+            document.body.removeChild(overlay);
+            if (speedTimer) clearTimeout(speedTimer);
+            speedActive = true;
+            speedTimer = setTimeout(() => {
+                speedActive = false;
+                showToast("⚡ 2倍速加速效果已结束", false);
+                fullRefresh();
+            }, 30000);
+            showToast("⚡ 2倍速加速开启！作物生长速度翻倍，持续30秒", false);
+            fullRefresh();
+        };
+    }
+
+    // 游戏循环 (生长倒计时+虫害)
+    let lastTimestamp = performance.now() / 1000;
+    function gameLoop() {
+        const now = performance.now() / 1000;
+        let delta = Math.min(0.1, now - lastTimestamp);
+        if (delta > 0) {
+            lastTimestamp = now;
+            let effectiveDelta = speedActive ? delta * 2 : delta;
+            let needRefresh = false;
+            for(let i=0;i<GRID_SIZE;i++){
+                for(let j=0;j<GRID_SIZE;j++){
+                    const p = plots[i][j];
+                    if(p && p.crop && p.crop.growRemaining > 0){
+                        let before = p.crop.growRemaining;
+                        p.crop.growRemaining -= effectiveDelta;
+                        if(p.crop.growRemaining < 0) p.crop.growRemaining = 0;
+                        // 随机虫害出现（仅生长中且无虫害）
+                        if(Math.floor(before) !== Math.floor(p.crop.growRemaining) && !p.crop.pest && p.crop.growRemaining > 0 && Math.random() < 0.035){
+                            p.crop.pest = true;
+                            showToast(`🐛 虫害！${p.crop.type} 需要驱虫`, true);
+                            needRefresh = true;
+                        }
+                        if(Math.floor(before) !== Math.floor(p.crop.growRemaining)) needRefresh = true;
+                    }
+                }
+            }
+            // 季节更替 (每120秒一天，每3天换季)
+            dayCounter += delta;
+            while(dayCounter >= 120){
+                dayCounter -= 120;
+                game.day++;
+                if((game.day-1) % 3 === 0 && game.day > 1){
+                    game.seasonIndex = (game.seasonIndex+1)%4;
+                    showToast(`🍂 季节更替 → ${seasonNames[game.seasonIndex]}`, false);
+                    needRefresh = true;
+                }
+            }
+            if(needRefresh) fullRefresh();
+        }
+        requestAnimationFrame(gameLoop);
+    }
+
+    function showTutorial(){
+        const hasShown = localStorage.getItem('orchardTutorial');
+        if(hasShown) return;
+        const modal = document.createElement('div'); modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-title">🌱 欢迎来到梦幻果园</div>
+                <div class="guide-step">1️⃣ 点击<strong>空闲地块</strong>即可种植（消耗30金币）</div>
+                <div class="guide-step">2️⃣ 作物成熟后点击<strong>收获</strong>，<strong>不直接获得金币</strong>，增加收获次数并存入仓库</div>
+                <div class="guide-step">3️⃣ 每<strong>收获25次</strong>触发丰收庆典，获得大量金币！等级越高奖励越多</div>
+                <div class="guide-step">4️⃣ 虫害用<strong>驱虫药</strong>（12金币）直接点击虫害地块</div>
+                <div class="guide-step">5️⃣ 看视频获得<strong>2倍速加速30秒</strong>（作物倒计时加快，不可拖动进度条）</div>
+                <div class="guide-step">✨ 仓库物品可通过"一键出售"换金币，等级提升售价提高</div>
+                <div class="close-modal" id="closeTutorial">开始经营 🚜</div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('closeTutorial').onclick = () => {
+            modal.remove();
+            localStorage.setItem('orchardTutorial', 'true');
+        };
+    }
+
+    function showAchievements(){
+    checkAchievements();
+    
+    const list = [
+        { name: "新手农夫", done: achievements.harvest50, desc: "累计收获50次", current: `${game.totalHarvest}/50` },
+        { name: "种植大师", done: achievements.harvest200, desc: "累计收获200次", current: `${game.totalHarvest}/200` },
+        { name: "传奇农夫", done: achievements.harvest500, desc: "累计收获500次", current: `${game.totalHarvest}/500` },
+        { name: "农场大亨", done: achievements.level5, desc: "农场等级达到5级", current: `Lv.${game.level}/5` },
+        { name: "腰缠万贯", done: achievements.money5000, desc: "累计收入5000金币", current: `${game.totalMoney}/5000` },
+        { name: "虫害克星", done: achievements.pesticide10, desc: "使用10次驱虫药", current: `${game.pesticideUsed}/10` }
+    ];
+    
+    const modal = document.createElement('div'); 
+    modal.className = 'modal-overlay';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-title">🏆 成就殿堂</div>
+            ${list.map(a => `
+                <div style="padding:8px; margin:6px 0; background:${a.done ? '#d4e6c3' : '#f5e6c8'}; border-radius:40px; border:${a.done ? '2px solid #6b9e3f' : '1px solid #d4b88c'};">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:1.2rem;">${a.done ? '✅' : '🔒'}</span>
+                        <span style="font-weight:bold; flex:1; margin-left:8px;">${a.name}</span>
+                        <span style="font-size:0.7rem; color:#6b3a1a;">${a.current}</span>
+                    </div>
+                    <div style="font-size:0.7rem; margin-top:4px; color:#8b5a3a;">${a.desc}</div>
+                </div>
+            `).join('')}
+            <div class="close-modal" id="closeAchieve">关闭</div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    document.getElementById('closeAchieve').onclick = () => modal.remove();
+}
+
+    function showToast(msg, isErr=false){
+        const t = document.createElement('div'); t.className = 'toast'; t.innerText = msg;
+        if(isErr) t.style.borderLeftColor = '#ff7a5a';
+        document.body.appendChild(t);
+        setTimeout(()=>t.remove(), 2500);
+    }
+
+    function saveLocal(){
+        const plotsForSave = [];
+        for(let i=0;i<GRID_SIZE;i++){
+            plotsForSave[i]=[];
+            for(let j=0;j<GRID_SIZE;j++){
+                plotsForSave[i][j] = { crop: plots[i][j].crop ? {...plots[i][j].crop} : null };
+            }
+        }
+        const data = { game, warehouse, harvestCount, plots: plotsForSave, dayCounter, signStreak, lastSignDay, achievements };
+        localStorage.setItem('orchardSave', JSON.stringify(data));
+    }
+    
+    function loadLocal(){
+    const raw = localStorage.getItem('orchardSave');
+    if(raw){
+        try{
+            const d = JSON.parse(raw);
+            game = d.game; 
+            warehouse = d.warehouse || []; 
+            harvestCount = d.harvestCount || 0;
+            dayCounter = d.dayCounter || 0; 
+            signStreak = d.signStreak || 0; 
+            lastSignDay = d.lastSignDay || 0;
+            
+            if(d.achievements) {
+                achievements = d.achievements;
+            }
+            
+            if(d.plots){
+                for(let i=0;i<GRID_SIZE;i++) for(let j=0;j<GRID_SIZE;j++) 
+                    if(d.plots[i] && d.plots[i][j]) plots[i][j] = d.plots[i][j];
+            }
+        }catch(e){}
+    }
+    
+    const savedAchievements = localStorage.getItem('orchardAchievements');
+    if(savedAchievements) {
+        try {
+            const loadedAch = JSON.parse(savedAchievements);
+            achievements = { ...achievements, ...loadedAch };
+        } catch(e) {}
+    }
+    
+    fullRefresh();
+    setTimeout(() => checkAchievements(), 100);
+}
+
+    // 作弊彩蛋
+    let clickCnt=0, clickTimer=null;
+    const cheatEye = document.getElementById('cheatEye');
+    cheatEye.onclick = (e) => {
+        e.stopPropagation();
+        if(clickTimer) clearTimeout(clickTimer);
+        clickCnt++;
+        if(clickCnt>=6){
+            clickCnt=0;
+            let newMoney = prompt("✨ 开挂模式：输入金币数量", game.money);
+            if(newMoney && !isNaN(parseFloat(newMoney))) { game.money = parseFloat(newMoney); fullRefresh(); showToast("金币已修改", false); }
+        } else { clickTimer = setTimeout(()=>{ clickCnt=0; }, 800); }
+    };
+
+    // 初始化网格
+    for(let i=0;i<GRID_SIZE;i++){ 
+        plots[i]=[]; 
+        for(let j=0;j<GRID_SIZE;j++) plots[i][j]={crop:null}; 
+    }
+    
+    loadLocal();
+    lastTimestamp = performance.now() / 1000;
+    requestAnimationFrame(gameLoop);
+    showTutorial();
+    
+    // UI按钮绑定
+    document.getElementById('plantBtn').onclick = () => showToast("🌱 请直接点击空闲地块进行种植 (30金币)", false);
+    document.getElementById('harvestAllBtn').onclick = () => harvestAll();
+    document.getElementById('sellAllBtn').onclick = () => sellAllWarehouse();
+    document.getElementById('pesticideBtn').onclick = () => usePesticideMode();
+    document.getElementById('upgradeBtn').onclick = () => upgradeFarm();
+    document.getElementById('speedBoostBtn').onclick = () => showAdAndBoost();
+    document.getElementById('resetBtn').onclick = () => resetGame();
+    document.getElementById('signBtn').onclick = () => dailySign();
+    document.getElementById('achievementBtn').onclick = () => showAchievements();
+    
+    showToast("✅ 修复点击种植！点击任意地块即可种植/收获/驱虫", false);
+</script>
+</body>
+</html>

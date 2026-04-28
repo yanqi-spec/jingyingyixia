@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>🌾 小七果园 | 轻松农场</title>
+    <title>🌾 小七果园 | 幸运农场</title>
     <style>
         * {
             margin: 0;
@@ -259,6 +259,29 @@
             font-weight: 600; max-width: 85vw;
         }
 
+        /* 天气提示条 */
+        .weather-banner {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ffd89b, #c7e9fb);
+            padding: 8px 20px;
+            border-radius: 60px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            z-index: 2500;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            animation: slideDown 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,200,0.6);
+            white-space: nowrap;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateX(-50%) translateY(-50px); }
+            to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
         @media (max-width: 650px) {
             body { padding: 6px; }
             .game-container { border-radius: 28px; }
@@ -286,6 +309,7 @@
             button { padding: 5px 10px; font-size: 0.65rem; }
             .cheat-eye { width: 38px; height: 38px; font-size: 1.3rem; bottom: 15px; right: 15px; }
             .toast { bottom: 70px; left: 12px; font-size: 0.65rem; padding: 5px 12px; }
+            .weather-banner { font-size: 0.7rem; padding: 5px 12px; top: 10px; }
         }
 
         @media (max-width: 480px) {
@@ -320,6 +344,7 @@
         }
         .skip-ad-btn:active { transform: scale(0.97); background: #7e451f; }
         .ad-buttons { display: flex; gap: 12px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+        .progress-warning { color: #ffaa66; font-size: 0.7rem; margin-top: 5px; text-align: center; }
     </style>
 </head>
 <body>
@@ -333,6 +358,7 @@
         <div class="stat-card"><span>⏰<span id="seasonDisplay">🌱春</span></span></div>
         <div class="stat-card"><span>📊<span id="harvestCounter">0/25</span></span></div>
         <div class="stat-card"><span>⚡<span id="boostStatus">正常</span></span></div>
+        <div class="stat-card"><span>🌈<span id="weatherStatus">无</span></span></div>
     </div>
     <div class="game-main">
         <div class="price-panel">
@@ -386,6 +412,89 @@
     let signStreak = 0;
     const seasons = ["spring", "summer", "autumn", "winter"];
     const seasonNames = ["🌱春季", "☀️夏季", "🍂秋季", "❄️冬季"];
+    
+    // ========== 幸运天气系统 ==========
+    let activeWeather = null; // { type: 'sunny', multiplier: 1.5, pestBonus: false, endTime: 0 }
+    let weatherTimer = null;
+    
+    const weatherTypes = {
+        sunny: { name: "☀️ 晴天", multiplier: 1.5, pestBonus: false, icon: "☀️", message: "阳光普照！作物生长加速50%！" },
+        rainy: { name: "🌧️ 雨天", multiplier: 1.3, pestBonus: true, icon: "🌧️", message: "雨水滋润！作物生长加速30%，驱虫效果翻倍！" }
+    };
+    
+    function showWeatherBanner(weather) {
+        const banner = document.createElement('div');
+        banner.className = 'weather-banner';
+        banner.innerHTML = `${weather.icon} ${weather.message} ${weather.icon}`;
+        document.body.appendChild(banner);
+        setTimeout(() => {
+            banner.style.opacity = '0';
+            banner.style.transition = 'opacity 0.5s';
+            setTimeout(() => banner.remove(), 500);
+        }, 3000);
+    }
+    
+    function triggerRandomWeather() {
+        // 清除现有天气
+        if (activeWeather) {
+            activeWeather = null;
+            updateWeatherUI();
+        }
+        
+        // 随机选择天气（70%晴天，30%雨天）
+        const isSunny = Math.random() < 0.7;
+        const weather = isSunny ? weatherTypes.sunny : weatherTypes.rainy;
+        const duration = 20000; // 20秒
+        
+        activeWeather = {
+            type: isSunny ? 'sunny' : 'rainy',
+            multiplier: weather.multiplier,
+            pestBonus: weather.pestBonus,
+            endTime: Date.now() + duration,
+            name: weather.name,
+            icon: weather.icon
+        };
+        
+        showWeatherBanner(weather);
+        showToast(`${weather.icon} ${weather.message}`, false);
+        updateWeatherUI();
+        
+        // 设置定时器结束天气
+        if (weatherTimer) clearTimeout(weatherTimer);
+        weatherTimer = setTimeout(() => {
+            activeWeather = null;
+            updateWeatherUI();
+            showToast("🌈 天气恢复正常", false);
+            fullRefresh();
+        }, duration);
+        
+        fullRefresh();
+        
+        // 随机安排下一次天气（60-120秒后）
+        const nextDelay = 60000 + Math.random() * 60000;
+        setTimeout(() => {
+            if (!activeWeather) triggerRandomWeather();
+        }, nextDelay);
+    }
+    
+    function updateWeatherUI() {
+        const weatherSpan = document.getElementById('weatherStatus');
+        if (activeWeather) {
+            weatherSpan.innerHTML = activeWeather.icon;
+            weatherSpan.parentElement.style.background = activeWeather.type === 'sunny' ? 'rgba(255,200,100,0.4)' : 'rgba(100,150,255,0.4)';
+        } else {
+            weatherSpan.innerHTML = '🌤️';
+            weatherSpan.parentElement.style.background = 'rgba(0,0,0,0.2)';
+        }
+    }
+    
+    // 获取当前生长速度倍率
+    function getGrowthMultiplier() {
+        let mult = 1.0;
+        if (speedActive) mult *= 2;
+        if (activeWeather) mult *= activeWeather.multiplier;
+        return mult;
+    }
     
     function getCurrentSeason() { return seasons[game.seasonIndex]; }
     function getSeasonMultiplier() { const m = { spring:1.0, summer:1.1, autumn:1.05, winter:0.95 }; return m[getCurrentSeason()]; }
@@ -455,14 +564,21 @@
             return;
         }
         if(plot.crop.pest){
-            if(game.money >= 12){
-                game.money -= 12;
+            let cost = 12;
+            // 雨天驱虫效果翻倍？实际上是金币折扣作为奖励
+            let actualCost = cost;
+            if (activeWeather && activeWeather.pestBonus) {
+                actualCost = Math.floor(cost / 2);
+                showToast(`🌧️ 雨天驱虫优惠！只需${actualCost}金币`, false);
+            }
+            if(game.money >= actualCost){
+                game.money -= actualCost;
                 plot.crop.pest = false;
                 game.pesticideUsed++;
                 fullRefresh();
                 showToast(`🧪 驱虫成功！${plot.crop.type} 恢复生长`, false);
                 saveLocal();
-            } else { showToast("💰 驱虫需12金币", true); }
+            } else { showToast(`💰 驱虫需${actualCost}金币`, true); }
             return;
         }
         if(plot.crop.growRemaining <= 0){
@@ -487,6 +603,7 @@
         document.getElementById('seasonDisplay').innerHTML = seasonNames[game.seasonIndex];
         document.getElementById('harvestCounter').innerHTML = `${harvestCount % 25}/25`;
         document.getElementById('boostStatus').innerHTML = speedActive ? '⚡2倍' : '正常';
+        updateWeatherUI();
         
         const allCrops = [];
         for(let s of seasons) cropsData[s].forEach(c => { if(!allCrops.find(a=>a.name===c.name)) allCrops.push(c); });
@@ -586,16 +703,20 @@
             game = { money: 1000, level: 1, day: 1, seasonIndex: 0, totalHarvest: 0, totalMoney: 1000, pesticideUsed: 0, upgrades: 0 };
             warehouse = []; harvestCount = 0; dayCounter = 0; signStreak = 0; lastSignDay = 0;
             if(speedTimer) clearTimeout(speedTimer); speedActive = false;
+            if(weatherTimer) clearTimeout(weatherTimer); activeWeather = null;
             for(let i=0;i<GRID_SIZE;i++){ plots[i]=[]; for(let j=0;j<GRID_SIZE;j++) plots[i][j]={crop:null}; }
             achievements = { harvest50: false, harvest200: false, harvest500: false, level5: false, money5000: false, pesticide10: false };
+            localStorage.removeItem('orchardSave');
             localStorage.removeItem('orchardAchievements');
             fullRefresh();
             showToast("🔄 农场已重置", false);
             saveLocal();
+            // 重启天气系统
+            setTimeout(() => triggerRandomWeather(), 5000);
         }
     }
     
-    // 新版广告：增加“不想看了”按钮，点击后无加速直接关闭
+    // ========== 强制广告播放（不可拖动，必须完整看完） ==========
     function showAdAndBoost() {
         const overlay = document.createElement('div'); 
         overlay.className = 'ad-overlay';
@@ -603,7 +724,7 @@
         container.className = 'ad-container';
         const title = document.createElement('div');
         title.style.cssText = 'text-align:center; color:#ffdd99; font-size:1rem; margin-bottom:10px; font-weight:bold;';
-        title.innerText = '🎬 看广告领2倍速 🎬';
+        title.innerText = '🎬 看广告领2倍速（30秒） 🎬';
         const randomIndex = Math.floor(Math.random() * adVideos.length);
         const videoPath = adVideos[randomIndex];
         const video = document.createElement('video');
@@ -612,24 +733,21 @@
         video.controls = true;
         video.playsInline = true;
         video.setAttribute('playsinline', 'true');
+        // 关键：禁止下载、禁止倍速、禁用画中画（尽可能限制）
+        video.setAttribute('controlsList', 'nodownload nofullscreen noplaybackrate');
+        video.disablePictureInPicture = true;
+        
         const statusDiv = document.createElement('div');
         statusDiv.style.cssText = 'text-align:center; margin-top:12px; color:#ffcc88; font-size:0.75rem;';
-        statusDiv.innerHTML = '📺 点击播放，完整观看后领取加速';
+        statusDiv.innerHTML = '📺 请完整观看视频（不可快进），看完后自动领取加速';
         
-        // 按钮区域：完整观看领取 与 “不想看了，跳过”
+        const progressWarning = document.createElement('div');
+        progressWarning.className = 'progress-warning';
+        progressWarning.innerHTML = '⏰ 请勿拖动进度条或快进，否则无法领取奖励';
+        
+        // 按钮区域
         const btnWrapper = document.createElement('div');
         btnWrapper.className = 'ad-buttons';
-        
-        const watchCompleteBtn = document.createElement('button');
-        watchCompleteBtn.innerText = '🎁 看完领取加速 (需完整播放)';
-        watchCompleteBtn.style.background = '#78b25a';
-        watchCompleteBtn.style.color = 'white';
-        watchCompleteBtn.style.borderRadius = '60px';
-        watchCompleteBtn.style.padding = '8px 16px';
-        watchCompleteBtn.style.fontWeight = 'bold';
-        watchCompleteBtn.style.border = 'none';
-        watchCompleteBtn.style.cursor = 'pointer';
-        watchCompleteBtn.style.boxShadow = '0 2px 4px black';
         
         const skipBtn = document.createElement('button');
         skipBtn.innerText = '❌ 不想看了 (无加速，直接关闭)';
@@ -645,6 +763,9 @@
         let videoCompleted = false;
         let videoStarted = false;
         let videoLoadFailed = false;
+        let seekAttempts = 0; // 记录快进尝试次数
+        let lastCurrentTime = 0;
+        let seekPreventionActive = true;
         
         const grantBoost = () => {
             if (speedTimer) clearTimeout(speedTimer);
@@ -659,57 +780,156 @@
             overlay.remove();
         };
         
-        // 完整观看逻辑
+        // 监控进度条拖动/快进
         video.addEventListener('loadedmetadata', () => {
-            statusDiv.innerHTML = '✅ 视频加载成功，点击播放 ✅';
+            statusDiv.innerHTML = '✅ 视频加载成功，请完整观看（不可快进）✅';
+            lastCurrentTime = 0;
         });
+        
         video.addEventListener('error', () => {
             videoLoadFailed = true;
-            statusDiv.innerHTML = `⚠️ 视频加载失败，可直接点击"领取加速"按钮 ⚠️`;
-            watchCompleteBtn.innerText = '⚠️ 补偿领取加速 (视频加载失败)';
-            watchCompleteBtn.style.background = '#b58a4a';
+            statusDiv.innerHTML = `⚠️ 视频加载失败，可点击下方按钮补偿领取 ⚠️`;
+            progressWarning.innerHTML = '⚠️ 加载失败，直接点击补偿按钮即可';
+            skipBtn.innerText = '🎁 补偿领取加速 (视频加载失败)';
+            skipBtn.style.background = '#5aa46a';
         });
+        
+        // 监听播放进度 - 检测是否快进
+        video.addEventListener('timeupdate', () => {
+            if (!videoStarted && video.currentTime > 0) {
+                videoStarted = true;
+            }
+            // 检测快进：如果currentTime比上次记录多超过0.5秒（正常播放不应该跳太多）
+            if (lastCurrentTime > 0 && video.currentTime - lastCurrentTime > 0.6 && video.paused === false) {
+                seekAttempts++;
+                progressWarning.innerHTML = `⚠️ 检测到快进行为 (${seekAttempts}/3次)，需重新观看 ⚠️`;
+                if (seekAttempts >= 2) {
+                    statusDiv.innerHTML = '❌ 多次快进，请刷新页面后重新点击广告按钮 ❌';
+                    progressWarning.innerHTML = '❌ 违规操作，无法领取奖励，请关闭后重试';
+                    video.pause();
+                } else {
+                    // 重置播放位置到上次记录的位置附近
+                    video.currentTime = Math.max(0, lastCurrentTime - 0.1);
+                    showToast("⚠️ 请不要快进或拖动进度条！", true);
+                }
+            }
+            lastCurrentTime = video.currentTime;
+        });
+        
+        // 禁止seeked事件（拖动进度条）
+        video.addEventListener('seeked', () => {
+            if (seekPreventionActive && videoStarted && !videoCompleted) {
+                seekAttempts++;
+                progressWarning.innerHTML = `⚠️ 检测到拖动进度条 (${seekAttempts}/3次)，请勿拖动 ⚠️`;
+                if (seekAttempts >= 2) {
+                    statusDiv.innerHTML = '❌ 多次拖动进度条，违规操作 ❌';
+                    progressWarning.innerHTML = '❌ 请关闭广告后重新观看';
+                    video.pause();
+                } else {
+                    showToast("⚠️ 禁止拖动进度条！请重新完整观看", true);
+                }
+            }
+        });
+        
         video.addEventListener('play', () => {
             videoStarted = true;
-            statusDiv.innerHTML = '🎥 播放中，请完整观看...';
-        });
-        video.addEventListener('ended', () => {
-            videoCompleted = true;
-            watchCompleteBtn.innerText = '✅ 领取2倍速加速 ✅';
-            watchCompleteBtn.style.background = '#5aa46a';
-            statusDiv.innerHTML = '✅ 视频已看完！点击领取 ✅';
+            statusDiv.innerHTML = '🎥 播放中，请完整观看，不要快进...';
+            seekPreventionActive = true;
         });
         
-        // 完整看完领取按钮
-        watchCompleteBtn.onclick = () => {
+        video.addEventListener('pause', () => {
+            if (!videoCompleted && videoStarted && video.currentTime < video.duration - 0.5) {
+                statusDiv.innerHTML = '⏸️ 视频已暂停，请继续播放完成';
+            }
+        });
+        
+        video.addEventListener('ended', () => {
+            if (seekAttempts < 2) {
+                videoCompleted = true;
+                statusDiv.innerHTML = '✅ 视频已完整看完！正在领取奖励... ✅';
+                progressWarning.innerHTML = '🎉 感谢观看！';
+                // 自动领取奖励，无需额外点击
+                setTimeout(() => {
+                    grantBoost();
+                }, 500);
+            } else {
+                statusDiv.innerHTML = '❌ 检测到违规操作，无法领取奖励 ❌';
+                progressWarning.innerHTML = '请关闭后重新观看广告';
+            }
+        });
+        
+        // 补偿领取按钮（加载失败或特殊情况）
+        const compensateBtn = document.createElement('button');
+        compensateBtn.innerText = '🎁 补偿领取 (视频问题)';
+        compensateBtn.style.background = '#78b25a';
+        compensateBtn.style.color = 'white';
+        compensateBtn.style.borderRadius = '60px';
+        compensateBtn.style.padding = '8px 16px';
+        compensateBtn.style.fontWeight = 'bold';
+        compensateBtn.style.border = 'none';
+        compensateBtn.style.cursor = 'pointer';
+        compensateBtn.style.boxShadow = '0 2px 4px black';
+        compensateBtn.style.display = 'none';
+        
+        // 如果加载失败，显示补偿按钮
+        const checkLoadFailed = setInterval(() => {
+            if (videoLoadFailed) {
+                compensateBtn.style.display = 'block';
+                clearInterval(checkLoadFailed);
+            }
+        }, 500);
+        
+        compensateBtn.onclick = () => {
             if (videoLoadFailed) {
                 grantBoost();
-                return;
+            } else {
+                showToast("视频正常，请完整观看", true);
             }
-            if (!videoCompleted && videoStarted && video.currentTime < video.duration - 0.5) {
-                statusDiv.innerHTML = '❌ 请完整观看整个视频！';
-                return;
-            }
-            if (!videoStarted && !videoLoadFailed) { statusDiv.innerHTML = '❌ 请先点击播放视频'; return; }
-            if (!videoCompleted && !videoLoadFailed) { statusDiv.innerHTML = '❌ 视频未播放完毕，无法领取'; return; }
-            grantBoost();
         };
         
-        // “不想看了” 直接关闭无加速
+        // “不想看了”直接关闭无加速
         skipBtn.onclick = () => {
             showToast("⏹️ 已关闭广告，没有获得加速效果", false);
             overlay.remove();
         };
         
-        btnWrapper.appendChild(watchCompleteBtn);
         btnWrapper.appendChild(skipBtn);
+        btnWrapper.appendChild(compensateBtn);
         container.appendChild(title);
         container.appendChild(video);
         container.appendChild(statusDiv);
+        container.appendChild(progressWarning);
         container.appendChild(btnWrapper);
         overlay.appendChild(container);
         document.body.appendChild(overlay);
+        
         video.load();
+        
+        // 添加额外保护：每5秒检查一次是否播放完成
+        const checkInterval = setInterval(() => {
+            if (videoCompleted || videoLoadFailed) {
+                clearInterval(checkInterval);
+            }
+            if (videoStarted && !videoCompleted && video.currentTime >= video.duration - 0.3 && video.duration > 0) {
+                // 如果接近结束但没有触发ended事件，手动触发
+                if (!videoCompleted && seekAttempts < 2) {
+                    videoCompleted = true;
+                    statusDiv.innerHTML = '✅ 观看完成！正在领取奖励... ✅';
+                    setTimeout(() => grantBoost(), 500);
+                    clearInterval(checkInterval);
+                }
+            }
+        }, 1000);
+        
+        // 清理定时器
+        const cleanup = () => {
+            clearInterval(checkInterval);
+        };
+        const originalRemove = overlay.remove;
+        overlay.remove = function() {
+            cleanup();
+            originalRemove.call(this);
+        };
     }
     
     let lastTimestamp = 0;
@@ -719,7 +939,9 @@
         let delta = Math.min(0.1, nowSec - lastTimestamp);
         if (delta <= 0) { requestAnimationFrame(gameLoop); return; }
         lastTimestamp = nowSec;
-        let effectiveDelta = speedActive ? delta * 2 : delta;
+        
+        const growthMult = getGrowthMultiplier();
+        let effectiveDelta = delta * growthMult;
         let needRefresh = false;
         
         for(let i=0;i<GRID_SIZE;i++){
@@ -760,9 +982,10 @@
         modal.innerHTML = `<div class="modal-content"><div style="font-size:1.2rem; font-weight:bold; margin-bottom:10px;">🌾 玩法指南</div>
         <div style="margin-bottom:6px; font-size:0.8rem;">1️⃣ 点击空闲地块种植(30💰)</div>
         <div style="margin-bottom:6px; font-size:0.8rem;">2️⃣ 收获作物，满25次得庆典奖励</div>
-        <div style="margin-bottom:6px; font-size:0.8rem;">3️⃣ 虫害需点击地块驱虫(12💰)</div>
-        <div style="margin-bottom:6px; font-size:0.8rem;">4️⃣ 看广告得2倍速30秒 (可跳过无加速)</div>
+        <div style="margin-bottom:6px; font-size:0.8rem;">3️⃣ 虫害需点击地块驱虫(12💰，雨天半价)</div>
+        <div style="margin-bottom:6px; font-size:0.8rem;">4️⃣ 看广告得2倍速30秒 (必须完整观看)</div>
         <div style="margin-bottom:6px; font-size:0.8rem;">5️⃣ 出售仓库换取金币升级</div>
+        <div style="margin-bottom:6px; font-size:0.8rem;">🌈 6️⃣ 随机触发晴天/雨天天气，影响生长速度！</div>
         <div class="close-modal" id="closeTutorial" style="background:#f5b45a; width:fit-content; margin:10px auto 0; padding:6px 20px; border-radius:60px; cursor:pointer;">🚜 开始经营</div></div>`;
         document.body.appendChild(modal);
         document.getElementById('closeTutorial').onclick = () => { modal.remove(); localStorage.setItem('orchardTutorial', 'true'); };
@@ -833,14 +1056,17 @@
     document.getElementById('plantBtn').onclick = () => showToast("🌱 点击空闲地块种植(30金币)", false);
     document.getElementById('harvestAllBtn').onclick = () => harvestAll();
     document.getElementById('sellAllBtn').onclick = () => sellAllWarehouse();
-    document.getElementById('pesticideBtn').onclick = () => showToast("🧪 点击带🐛虫害的地块使用驱虫药(12金币)", false);
+    document.getElementById('pesticideBtn').onclick = () => showToast("🧪 点击带🐛虫害的地块使用驱虫药(12金币，雨天半价)", false);
     document.getElementById('upgradeBtn').onclick = () => upgradeFarm();
     document.getElementById('speedBoostBtn').onclick = () => showAdAndBoost();
     document.getElementById('resetBtn').onclick = () => resetGame();
     document.getElementById('signBtn').onclick = () => dailySign();
     document.getElementById('achievementBtn').onclick = () => showAchievements();
     
-    showToast("✨ 6x6果园 | 广告增加跳过按钮，不加速直接关闭", false);
+    // 启动天气系统
+    setTimeout(() => triggerRandomWeather(), 3000);
+    
+    showToast("✨ 6x6果园 | 新增幸运天气系统！晴天/雨天影响生长速度 ✨", false);
 </script>
 </body>
 </html>
